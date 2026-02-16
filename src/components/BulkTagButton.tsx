@@ -10,24 +10,43 @@ interface BulkTagButtonProps {
 
 export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
   const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState("");
 
   const handleClick = async () => {
     setIsRunning(true);
-    try {
-      const res = await fetch("/api/memos/generate-tags", { method: "POST" });
-      const data = await res.json();
+    let totalProcessed = 0;
 
-      if (!res.ok) {
-        console.error("Bulk tag generation failed:", data.error);
-        return;
+    try {
+      // バッチを繰り返し呼び出す
+      while (true) {
+        const res = await fetch("/api/memos/generate-tags", {
+          method: "POST",
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          console.error("Bulk tag generation failed:", data.error);
+          break;
+        }
+
+        totalProcessed += data.processed;
+        setProgress(`${totalProcessed}件完了 / 残り${data.remaining}件`);
+
+        if (data.remaining === 0) {
+          break;
+        }
+
+        // メモ一覧を途中で更新
+        onCompleted();
       }
 
-      alert(`${data.processed}件のメモにタグを生成しました`);
+      alert(`${totalProcessed}件のメモにタグを生成しました`);
       onCompleted();
     } catch (err) {
       console.error("Bulk tag error:", err);
     } finally {
       setIsRunning(false);
+      setProgress("");
     }
   };
 
@@ -38,7 +57,7 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
       className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
       onClick={handleClick}
       disabled={isRunning}
-      title="一括タグ生成"
+      title={isRunning ? progress : "一括タグ生成"}
     >
       {isRunning ? (
         <Loader2 className="h-4 w-4 animate-spin" />
@@ -46,7 +65,7 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
         <Sparkles className="h-4 w-4" />
       )}
       <span className="ml-1.5 hidden sm:inline">
-        {isRunning ? "生成中..." : "一括タグ"}
+        {isRunning ? progress || "生成中..." : "一括タグ"}
       </span>
     </Button>
   );

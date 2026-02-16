@@ -1,9 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generateTags } from "@/lib/claude";
 
-// POST: タグ未付与のメモに一括でAIタグ生成
-export async function POST() {
+const BATCH_SIZE = 3;
+
+// POST: タグ未付与のメモにAIタグ生成（バッチ処理）
+export async function POST(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const batchSize = parseInt(searchParams.get("batch") ?? String(BATCH_SIZE), 10);
+
   // タグが付いていないメモを取得
   const { data: allMemos, error: memosError } = await supabase
     .from("memos")
@@ -22,13 +27,17 @@ export async function POST() {
   const taggedIds = new Set((taggedRows ?? []).map((r) => r.memo_id));
   const untaggedMemos = (allMemos ?? []).filter((m) => !taggedIds.has(m.id));
 
-  if (untaggedMemos.length === 0) {
-    return NextResponse.json({ processed: 0 });
+  const remaining = untaggedMemos.length;
+
+  if (remaining === 0) {
+    return NextResponse.json({ processed: 0, remaining: 0 });
   }
 
+  // バッチ分だけ処理
+  const batch = untaggedMemos.slice(0, batchSize);
   let processed = 0;
 
-  for (const memo of untaggedMemos) {
+  for (const memo of batch) {
     try {
       const tagNames = await generateTags(memo.content);
 
@@ -54,5 +63,8 @@ export async function POST() {
     }
   }
 
-  return NextResponse.json({ processed, total: untaggedMemos.length });
+  return NextResponse.json({
+    processed,
+    remaining: remaining - processed,
+  });
 }
