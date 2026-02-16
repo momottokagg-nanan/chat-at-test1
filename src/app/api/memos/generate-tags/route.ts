@@ -10,6 +10,8 @@ export async function POST(request: NextRequest) {
   const db = supabase();
   const searchParams = request.nextUrl.searchParams;
   const batchSize = parseInt(searchParams.get("batch") ?? String(BATCH_SIZE), 10);
+  const from = searchParams.get("from"); // yyyy-MM-dd
+  const to = searchParams.get("to");     // yyyy-MM-dd
 
   // タグが付いていないメモを取得
   // memo_tagsに存在するmemo_idを先に取得してフィルタリング
@@ -30,6 +32,14 @@ export async function POST(request: NextRequest) {
     query = query.not("id", "in", `(${taggedIds.join(",")})`);
   }
 
+  // 日付範囲フィルター
+  if (from) {
+    query = query.gte("created_at", `${from}T00:00:00`);
+  }
+  if (to) {
+    query = query.lte("created_at", `${to}T23:59:59`);
+  }
+
   const { data: untaggedMemos, error: memosError } = await query;
 
   if (memosError) {
@@ -44,20 +54,31 @@ export async function POST(request: NextRequest) {
 
   const processed = await processBatch(memos);
 
-  // 残件数を正確に計算
-  // 全メモ数 - タグ付きメモ数(処理済み分も含む)
-  const { count: totalMemos } = await db
-    .from("memos")
-    .select("id", { count: "exact", head: true });
-
+  // 残件数を正確に計算（日付範囲内の未タグメモ数）
   const { data: newTaggedRows } = await db
     .from("memo_tags")
     .select("memo_id");
-  const newTaggedCount = new Set((newTaggedRows ?? []).map((r) => r.memo_id)).size;
+  const newTaggedIds = [...new Set((newTaggedRows ?? []).map((r) => r.memo_id))];
+
+  let remainingQuery = db
+    .from("memos")
+    .select("id", { count: "exact", head: true });
+
+  if (newTaggedIds.length > 0) {
+    remainingQuery = remainingQuery.not("id", "in", `(${newTaggedIds.join(",")})`);
+  }
+  if (from) {
+    remainingQuery = remainingQuery.gte("created_at", `${from}T00:00:00`);
+  }
+  if (to) {
+    remainingQuery = remainingQuery.lte("created_at", `${to}T23:59:59`);
+  }
+
+  const { count: remaining } = await remainingQuery;
 
   return NextResponse.json({
     processed,
-    remaining: (totalMemos ?? 0) - newTaggedCount,
+    remaining: remaining ?? 0,
   });
 }
 

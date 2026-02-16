@@ -2,6 +2,11 @@
 
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Sparkles, Loader2 } from "lucide-react";
 
 interface BulkTagButtonProps {
@@ -11,24 +16,27 @@ interface BulkTagButtonProps {
 export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState("");
+  const [open, setOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const abortRef = useRef(false);
 
-  const handleClick = async () => {
-    if (isRunning) {
-      // 実行中なら中断
-      abortRef.current = true;
-      return;
-    }
-
+  const runBulkTag = async () => {
+    setOpen(false);
     setIsRunning(true);
     abortRef.current = false;
     let totalProcessed = 0;
     let batchCount = 0;
     const startTime = Date.now();
 
+    const params = new URLSearchParams();
+    if (fromDate) params.set("from", fromDate);
+    if (toDate) params.set("to", toDate);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+
     try {
       while (!abortRef.current) {
-        const res = await fetch("/api/memos/generate-tags", {
+        const res = await fetch(`/api/memos/generate-tags${qs}`, {
           method: "POST",
         });
         const data = await res.json();
@@ -51,7 +59,7 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
           break;
         }
 
-        // 5バッチごとにメモ一覧を更新（頻繁な更新を避ける）
+        // 5バッチごとにメモ一覧を更新
         if (batchCount % 5 === 0) {
           onCompleted();
         }
@@ -72,23 +80,86 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
     }
   };
 
+  const handleStopClick = () => {
+    abortRef.current = true;
+  };
+
   return (
-    <Button
-      variant="outline"
-      size="icon"
-      className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
-      onClick={handleClick}
-      disabled={false}
-      title={isRunning ? `${progress}（クリックで中断）` : "一括タグ生成"}
-    >
+    <>
       {isRunning ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
+          onClick={handleStopClick}
+          title={`${progress}（クリックで中断）`}
+        >
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span className="ml-1.5 hidden sm:inline">
+            {progress || "生成中..."}
+          </span>
+        </Button>
       ) : (
-        <Sparkles className="h-4 w-4" />
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
+              title="一括タグ生成"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span className="ml-1.5 hidden sm:inline">一括タグ</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72" align="end">
+            <div className="space-y-3">
+              <p className="text-sm font-medium">期間を指定して一括タグ生成</p>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">開始日</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs text-muted-foreground">終了日</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  onClick={runBulkTag}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  実行
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    setFromDate("");
+                    setToDate("");
+                  }}
+                >
+                  クリア
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                未指定の場合は全期間が対象です
+              </p>
+            </div>
+          </PopoverContent>
+        </Popover>
       )}
-      <span className="ml-1.5 hidden sm:inline">
-        {isRunning ? progress || "生成中..." : "一括タグ"}
-      </span>
-    </Button>
+    </>
   );
 }
