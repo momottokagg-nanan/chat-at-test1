@@ -34,16 +34,20 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="icon"
+      className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
       onClick={handleClick}
       disabled={isRunning}
+      title="一括タグ生成"
     >
       {isRunning ? (
         <Loader2 className="h-4 w-4 animate-spin" />
       ) : (
         <Sparkles className="h-4 w-4" />
       )}
-      <span className="ml-1.5">{isRunning ? "生成中..." : "一括タグ"}</span>
+      <span className="ml-1.5 hidden sm:inline">
+        {isRunning ? "生成中..." : "一括タグ"}
+      </span>
     </Button>
   );
 }

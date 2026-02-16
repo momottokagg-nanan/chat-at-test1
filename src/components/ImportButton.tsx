@@ -41,7 +41,6 @@ export function ImportButton({ onImported }: ImportButtonProps) {
       console.error("Import error:", err);
     } finally {
       setIsImporting(false);
-      // 同じファイルを再選択できるようにリセット
       if (inputRef.current) {
         inputRef.current.value = "";
       }
@@ -59,16 +58,18 @@ export function ImportButton({ onImported }: ImportButtonProps) {
       />
       <Button
         variant="outline"
-        size="sm"
+        size="icon"
+        className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
         onClick={handleClick}
         disabled={isImporting}
+        title="Import"
       >
         {isImporting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Upload className="h-4 w-4" />
         )}
-        <span className="ml-1.5">Import</span>
+        <span className="ml-1.5 hidden sm:inline">Import</span>
       </Button>
     </>
   );

@@ -49,8 +49,8 @@ export function MessageBubble({
 
   return (
     <div className="group flex justify-end gap-2">
-      <div className="max-w-[80%] space-y-1">
-        <div className="rounded-2xl rounded-tr-sm bg-primary px-4 py-2 text-primary-foreground">
+      <div className="max-w-[85%] space-y-1 sm:max-w-[80%]">
+        <div className="rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-primary-foreground sm:px-4">
           <p className="whitespace-pre-wrap text-sm">{memo.content}</p>
         </div>
         {memo.tags.length > 0 && (
@@ -60,12 +60,14 @@ export function MessageBubble({
             ))}
           </div>
         )}
-        <div className="flex items-center gap-2 px-1">
-          <span className="text-xs text-muted-foreground">{timeStr}</span>
+        <div className="flex items-center gap-1.5 px-1 sm:gap-2">
+          <span className="text-[11px] text-muted-foreground sm:text-xs">
+            {timeStr}
+          </span>
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+            className="h-6 w-6 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
             onClick={handleGenerateTags}
             disabled={isGenerating}
             title="AIでタグ生成"
@@ -79,7 +81,7 @@ export function MessageBubble({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100"
+            className="h-6 w-6 opacity-100 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100"
             onClick={() => onDelete(memo.id)}
           >
             <Trash2 className="h-3 w-3 text-muted-foreground" />

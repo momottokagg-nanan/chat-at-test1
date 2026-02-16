@@ -27,15 +27,15 @@ export function InputBar({ onSubmit, isSubmitting }: Props) {
   };
 
   return (
-    <div className="border-t bg-background px-4 py-3">
+    <div className="border-t bg-background px-3 pb-[env(safe-area-inset-bottom,0px)] pt-2 sm:px-4 sm:py-3">
       <div className="mx-auto flex max-w-2xl items-end gap-2">
         <textarea
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="メモを入力... (Shift+Enterで改行)"
+          placeholder="メモを入力..."
           rows={1}
-          className="flex-1 resize-none rounded-xl border bg-muted px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 resize-none rounded-xl border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring sm:px-4 sm:py-2.5"
           disabled={isSubmitting}
         />
         <Button
