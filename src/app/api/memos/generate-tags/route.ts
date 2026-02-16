@@ -10,46 +10,32 @@ export async function POST(request: NextRequest) {
   const db = supabase();
   const searchParams = request.nextUrl.searchParams;
   const batchSize = parseInt(searchParams.get("batch") ?? String(BATCH_SIZE), 10);
-  const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
-  // タグが付いていないメモをサブクエリで効率的に取得
-  const { data: untaggedMemos, error: memosError } = await db
-    .rpc("get_untagged_memos", { lim: batchSize, off: offset });
+  // タグが付いていないメモを取得
+  // memo_tagsに存在するmemo_idを先に取得してフィルタリング
+  const { data: taggedRows } = await db
+    .from("memo_tags")
+    .select("memo_id");
 
-  // RPCが無い場合のフォールバック
-  if (memosError) {
-    // 従来方式: タグ未付与メモを取得
-    const { data: allMemos, error: allError } = await db
-      .from("memos")
-      .select("id, content")
-      .order("created_at", { ascending: true });
+  const taggedIds = [...new Set((taggedRows ?? []).map((r) => r.memo_id))];
 
-    if (allError) {
-      return NextResponse.json({ error: allError.message }, { status: 500 });
-    }
+  let query = db
+    .from("memos")
+    .select("id, content")
+    .order("created_at", { ascending: true })
+    .limit(batchSize);
 
-    const { data: taggedRows } = await db
-      .from("memo_tags")
-      .select("memo_id");
-
-    const taggedIds = new Set((taggedRows ?? []).map((r) => r.memo_id));
-    const filtered = (allMemos ?? []).filter((m) => !taggedIds.has(m.id));
-
-    const remaining = filtered.length;
-    if (remaining === 0) {
-      return NextResponse.json({ processed: 0, remaining: 0 });
-    }
-
-    const batch = filtered.slice(0, batchSize);
-    const processed = await processBatch(batch);
-
-    return NextResponse.json({
-      processed,
-      remaining: remaining - processed,
-    });
+  // taggedIdsがある場合はそれらを除外
+  if (taggedIds.length > 0) {
+    query = query.not("id", "in", `(${taggedIds.join(",")})`);
   }
 
-  // RPCが使える場合
+  const { data: untaggedMemos, error: memosError } = await query;
+
+  if (memosError) {
+    return NextResponse.json({ error: memosError.message }, { status: 500 });
+  }
+
   const memos = untaggedMemos ?? [];
 
   if (memos.length === 0) {
@@ -58,15 +44,20 @@ export async function POST(request: NextRequest) {
 
   const processed = await processBatch(memos);
 
-  // 残件数を取得
-  const { count } = await db
+  // 残件数を正確に計算
+  // 全メモ数 - タグ付きメモ数(処理済み分も含む)
+  const { count: totalMemos } = await db
     .from("memos")
-    .select("id", { count: "exact", head: true })
-    .not("id", "in", `(select memo_id from memo_tags)`);
+    .select("id", { count: "exact", head: true });
+
+  const { data: newTaggedRows } = await db
+    .from("memo_tags")
+    .select("memo_id");
+  const newTaggedCount = new Set((newTaggedRows ?? []).map((r) => r.memo_id)).size;
 
   return NextResponse.json({
     processed,
-    remaining: (count ?? 0),
+    remaining: (totalMemos ?? 0) - newTaggedCount,
   });
 }
 
@@ -91,7 +82,25 @@ async function processOneMemo(memo: { id: string; content: string }): Promise<bo
   try {
     const tagNames = await generateTags(memo.content);
 
-    // タグを一括upsertしてからmemo_tagsに紐付け
+    // タグが生成されなかった場合でも「処理済み」としてマークするため
+    // 空のタグ名で紐付けを作成（「未分類」タグ）
+    if (tagNames.length === 0) {
+      const { data: tag } = await db
+        .from("tags")
+        .upsert({ name: "未分類" }, { onConflict: "name" })
+        .select()
+        .single();
+      if (tag) {
+        await db
+          .from("memo_tags")
+          .upsert(
+            { memo_id: memo.id, tag_id: tag.id },
+            { onConflict: "memo_id,tag_id" }
+          );
+      }
+      return true;
+    }
+
     for (const name of tagNames) {
       const { data: tag } = await db
         .from("tags")
