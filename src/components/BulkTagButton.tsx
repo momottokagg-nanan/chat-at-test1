@@ -26,7 +26,9 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
     setIsRunning(true);
     abortRef.current = false;
     let totalProcessed = 0;
+    let totalFailed = 0;
     let batchCount = 0;
+    let noProgressCount = 0;
     const startTime = Date.now();
 
     const params = new URLSearchParams();
@@ -47,12 +49,25 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
         }
 
         totalProcessed += data.processed;
+        totalFailed += data.failed ?? 0;
         batchCount++;
+
+        // 進捗がない（processed も failed も 0）場合のカウント
+        if (data.processed === 0 && (data.failed ?? 0) === 0) {
+          noProgressCount++;
+          if (noProgressCount >= 3) {
+            console.error("No progress detected after 3 consecutive batches, stopping.");
+            break;
+          }
+        } else {
+          noProgressCount = 0;
+        }
 
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         const speed = totalProcessed > 0 ? (elapsed / totalProcessed).toFixed(1) : "—";
+        const failedText = totalFailed > 0 ? ` (エラー${totalFailed}件)` : "";
         setProgress(
-          `${totalProcessed}件完了 / 残り${data.remaining}件 (${speed}秒/件)`
+          `${totalProcessed}件完了 / 残り${data.remaining}件 (${speed}秒/件)${failedText}`
         );
 
         if (data.remaining === 0) {
@@ -65,10 +80,13 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
         }
       }
 
+      const failedMsg = totalFailed > 0 ? `（エラー${totalFailed}件）` : "";
       if (abortRef.current) {
-        alert(`中断しました（${totalProcessed}件処理済み）`);
+        alert(`中断しました（${totalProcessed}件処理済み${failedMsg}）`);
+      } else if (noProgressCount >= 3) {
+        alert(`処理が進まないため停止しました（${totalProcessed}件処理済み${failedMsg}）`);
       } else {
-        alert(`${totalProcessed}件のメモにタグを生成しました`);
+        alert(`${totalProcessed}件のメモにタグを生成しました${failedMsg}`);
       }
       onCompleted();
     } catch (err) {
