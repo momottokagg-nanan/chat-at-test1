@@ -2,7 +2,7 @@
 
 import { MemoWithTags, Tag } from "@/types";
 import { MessageBubble } from "./MessageBubble";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 
 type Props = {
@@ -30,24 +30,45 @@ export function ChatArea({
   const containerRef = useRef<HTMLDivElement>(null);
   const prevScrollHeightRef = useRef<number>(0);
   const isInitialLoad = useRef(true);
+  const prevMemoCountRef = useRef<number>(0);
+  const scrollActionRef = useRef<"none" | "bottom" | "restore">("none");
 
-  // 初期ロード時・新規投稿時に最下部へスクロール
-  useEffect(() => {
-    if (isInitialLoad.current && memos.length > 0) {
-      bottomRef.current?.scrollIntoView();
+  // メモが変わったとき、どのスクロール操作をすべきか判定
+  // (useLayoutEffect より先に実行されるよう、render中に計算)
+  const memoCount = memos.length;
+  const prevCount = prevMemoCountRef.current;
+
+  if (memoCount !== prevCount) {
+    if (isInitialLoad.current && memoCount > 0) {
+      // 初期ロード → 最下部へ
+      scrollActionRef.current = "bottom";
       isInitialLoad.current = false;
-      return;
+    } else if (prevScrollHeightRef.current > 0) {
+      // 過去分ロード → スクロール位置維持
+      scrollActionRef.current = "restore";
+    } else if (memoCount > prevCount && prevCount > 0) {
+      // 新規投稿（末尾に追加された）→ 最下部へ
+      scrollActionRef.current = "bottom";
+    } else {
+      // それ以外（リフレッシュ等）→ スクロール位置を動かさない
+      scrollActionRef.current = "none";
     }
-    // 過去分ロード後はスクロール位置を維持
-    if (prevScrollHeightRef.current > 0 && containerRef.current) {
+    prevMemoCountRef.current = memoCount;
+  }
+
+  // 描画前にスクロール位置を調整（ちらつき防止）
+  useLayoutEffect(() => {
+    const action = scrollActionRef.current;
+    scrollActionRef.current = "none";
+
+    if (action === "restore" && containerRef.current) {
       const newScrollHeight = containerRef.current.scrollHeight;
       containerRef.current.scrollTop +=
         newScrollHeight - prevScrollHeightRef.current;
       prevScrollHeightRef.current = 0;
-      return;
+    } else if (action === "bottom") {
+      bottomRef.current?.scrollIntoView();
     }
-    // 新規投稿時は最下部へ
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [memos]);
 
   // 上スクロールで過去分を読み込み

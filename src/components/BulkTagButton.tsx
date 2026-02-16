@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Loader2 } from "lucide-react";
 
@@ -11,14 +11,23 @@ interface BulkTagButtonProps {
 export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState("");
+  const abortRef = useRef(false);
 
   const handleClick = async () => {
+    if (isRunning) {
+      // 実行中なら中断
+      abortRef.current = true;
+      return;
+    }
+
     setIsRunning(true);
+    abortRef.current = false;
     let totalProcessed = 0;
+    let batchCount = 0;
+    const startTime = Date.now();
 
     try {
-      // バッチを繰り返し呼び出す
-      while (true) {
+      while (!abortRef.current) {
         const res = await fetch("/api/memos/generate-tags", {
           method: "POST",
         });
@@ -30,20 +39,33 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
         }
 
         totalProcessed += data.processed;
-        setProgress(`${totalProcessed}件完了 / 残り${data.remaining}件`);
+        batchCount++;
+
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const speed = totalProcessed > 0 ? (elapsed / totalProcessed).toFixed(1) : "—";
+        setProgress(
+          `${totalProcessed}件完了 / 残り${data.remaining}件 (${speed}秒/件)`
+        );
 
         if (data.remaining === 0) {
           break;
         }
 
-        // メモ一覧を途中で更新
-        onCompleted();
+        // 5バッチごとにメモ一覧を更新（頻繁な更新を避ける）
+        if (batchCount % 5 === 0) {
+          onCompleted();
+        }
       }
 
-      alert(`${totalProcessed}件のメモにタグを生成しました`);
+      if (abortRef.current) {
+        alert(`中断しました（${totalProcessed}件処理済み）`);
+      } else {
+        alert(`${totalProcessed}件のメモにタグを生成しました`);
+      }
       onCompleted();
     } catch (err) {
       console.error("Bulk tag error:", err);
+      alert("エラーが発生しました。コンソールを確認してください。");
     } finally {
       setIsRunning(false);
       setProgress("");
@@ -56,8 +78,8 @@ export function BulkTagButton({ onCompleted }: BulkTagButtonProps) {
       size="icon"
       className="h-8 w-8 sm:h-9 sm:w-auto sm:px-3"
       onClick={handleClick}
-      disabled={isRunning}
-      title={isRunning ? progress : "一括タグ生成"}
+      disabled={false}
+      title={isRunning ? `${progress}（クリックで中断）` : "一括タグ生成"}
     >
       {isRunning ? (
         <Loader2 className="h-4 w-4 animate-spin" />
