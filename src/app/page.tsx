@@ -129,7 +129,7 @@ export default function Home() {
   };
 
   return (
-    <div className="flex h-dvh flex-col">
+    <div className="flex h-dvh flex-col overflow-x-hidden">
       {/* Header */}
       <header className="flex items-center justify-between border-b px-3 py-2 sm:px-4 sm:py-3">
         <h1 className="text-base font-bold sm:text-lg">AI Chat Memo</h1>
