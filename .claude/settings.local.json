@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude mcp add context7 -- npx -y @upstash/context7-mcp)",
+      "Bash(CLAUDECODE= claude mcp add context7 -- npx -y @upstash/context7-mcp)",
+      "Bash(npx create-next-app@latest:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git init:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial setup: Next.js + TypeScript + Tailwind CSS + shadcn/ui\n\n- Next.js 16 with App Router and src directory\n- Tailwind CSS v4 with shadcn/ui components \\(button, input, badge, scroll-area\\)\n- Project specification \\(CLAUDE.md\\) and implementation plan \\(TODO.md\\)\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npm run dev:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nImplement core features: memo CRUD, AI auto-tagging, keyword search\n\n- API Routes: memos CRUD, search \\(content + tags\\), tags list\n- Claude API integration for auto-tagging on memo creation\n- UI components: ChatArea, MessageBubble, InputBar, SearchBar, ModeToggle, TagBadge\n- Supabase client setup and schema SQL\n- Post/search mode toggle with tag-click search\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(dir:*)",
+      "Bash(npx next build)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd Slack import, lazy loading, and AI tag generation features\n\n- Slack txt file import with timestamp parsing\n- Initial load limited to 30 days with infinite scroll for older memos\n- Reverse chronological order \\(newest at bottom\\)\n- Per-memo AI tag generation button\n- Bulk AI tag generation for untagged memos\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(npx vercel:*)",
+      "Bash(gh api:*)",
+      "Bash(vercel link:*)",
+      "Bash(FORCE_TTY=1 vercel link:*)",
+      "Bash(FORCE_TTY=1 vercel ls:*)",
+      "Bash(FORCE_TTY=1 vercel inspect:*)",
+      "Bash(FORCE_TTY=1 vercel project ls:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nOptimize UI for mobile \\(iPhone\\) display\n\n- Header buttons show icon-only on mobile, text on desktop\n- ModeToggle compact on small screens\n- MessageBubble action buttons always visible on touch devices\n- InputBar safe-area-inset-bottom for iPhone home bar\n- Add viewport meta tag with viewport-fit cover\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(source:*)",
+      "Bash(echo:*)",
+      "WebFetch(domain:test-ai-chat-smoky.vercel.app)",
+      "Bash(curl:*)"
+    ]
+  }
+}
