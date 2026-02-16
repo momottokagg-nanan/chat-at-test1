@@ -3,7 +3,8 @@ import { supabase } from "@/lib/supabase";
 
 // GET: タグ一覧取得
 export async function GET() {
-  const { data: tags, error } = await supabase
+  const db = supabase();
+  const { data: tags, error } = await db
     .from("tags")
     .select("*")
     .order("name");

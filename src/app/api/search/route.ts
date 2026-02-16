@@ -13,15 +13,16 @@ export async function GET(request: NextRequest) {
   }
 
   const keyword = `%${query}%`;
+  const db = supabase();
 
   // 本文にマッチするメモID
-  const { data: contentMatches } = await supabase
+  const { data: contentMatches } = await db
     .from("memos")
     .select("id")
     .ilike("content", keyword);
 
   // タグ名にマッチするメモID
-  const { data: tagMatches } = await supabase
+  const { data: tagMatches } = await db
     .from("tags")
     .select("id, memo_tags(memo_id)")
     .ilike("name", keyword);
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
   }
 
   // メモ本体を取得
-  const { data: memos, error } = await supabase
+  const { data: memos, error } = await db
     .from("memos")
     .select("*")
     .in("id", allMemoIds)
@@ -53,7 +54,7 @@ export async function GET(request: NextRequest) {
   // タグを紐づけ
   const memosWithTags = await Promise.all(
     (memos ?? []).map(async (memo) => {
-      const { data: memoTags } = await supabase
+      const { data: memoTags } = await db
         .from("memo_tags")
         .select("tag_id, tags(id, name)")
         .eq("memo_id", memo.id);

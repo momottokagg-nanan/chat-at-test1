@@ -4,11 +4,12 @@ import { generateTags } from "@/lib/claude";
 
 // GET: メモ一覧取得（タグ付き、ページング対応）
 export async function GET(request: NextRequest) {
+  const db = supabase();
   const searchParams = request.nextUrl.searchParams;
   const before = searchParams.get("before"); // カーソル: これより古いメモを取得
   const days = searchParams.get("days"); // 初期ロード用: 直近N日分
 
-  let query = supabase
+  let query = db
     .from("memos")
     .select("*")
     .order("created_at", { ascending: false })
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
   // 各メモにタグを紐づけ
   const memosWithTags = await Promise.all(
     memos.map(async (memo) => {
-      const { data: memoTags } = await supabase
+      const { data: memoTags } = await db
         .from("memo_tags")
         .select("tag_id, tags(id, name)")
         .eq("memo_id", memo.id);
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
 
 // POST: メモ作成（自動タグ付け付き）
 export async function POST(request: NextRequest) {
+  const db = supabase();
   const { content } = await request.json();
 
   if (!content || typeof content !== "string") {
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
   }
 
   // メモ保存
-  const { data: memo, error: memoError } = await supabase
+  const { data: memo, error: memoError } = await db
     .from("memos")
     .insert({ content })
     .select()
@@ -82,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     for (const name of tagNames) {
       // タグを upsert
-      const { data: tag } = await supabase
+      const { data: tag } = await db
         .from("tags")
         .upsert({ name }, { onConflict: "name" })
         .select()
@@ -91,7 +93,7 @@ export async function POST(request: NextRequest) {
       if (tag) {
         tags.push(tag);
         // 中間テーブルに紐づけ
-        await supabase
+        await db
           .from("memo_tags")
           .insert({ memo_id: memo.id, tag_id: tag.id });
       }

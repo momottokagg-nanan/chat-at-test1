@@ -7,8 +7,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const db = supabase();
 
-  const { error } = await supabase.from("memos").delete().eq("id", id);
+  const { error } = await db.from("memos").delete().eq("id", id);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

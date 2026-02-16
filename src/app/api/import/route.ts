@@ -48,7 +48,8 @@ export async function POST(request: NextRequest) {
   }
 
   // Supabaseにバルクインサート
-  const { error } = await supabase.from("memos").insert(entries);
+  const db = supabase();
+  const { error } = await db.from("memos").insert(entries);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

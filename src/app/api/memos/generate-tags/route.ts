@@ -7,18 +7,19 @@ const CONCURRENCY = 5;
 
 // POST: タグ未付与のメモにAIタグ生成（バッチ処理）
 export async function POST(request: NextRequest) {
+  const db = supabase();
   const searchParams = request.nextUrl.searchParams;
   const batchSize = parseInt(searchParams.get("batch") ?? String(BATCH_SIZE), 10);
   const offset = parseInt(searchParams.get("offset") ?? "0", 10);
 
   // タグが付いていないメモをサブクエリで効率的に取得
-  const { data: untaggedMemos, error: memosError } = await supabase
+  const { data: untaggedMemos, error: memosError } = await db
     .rpc("get_untagged_memos", { lim: batchSize, off: offset });
 
   // RPCが無い場合のフォールバック
   if (memosError) {
     // 従来方式: タグ未付与メモを取得
-    const { data: allMemos, error: allError } = await supabase
+    const { data: allMemos, error: allError } = await db
       .from("memos")
       .select("id, content")
       .order("created_at", { ascending: true });
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: allError.message }, { status: 500 });
     }
 
-    const { data: taggedRows } = await supabase
+    const { data: taggedRows } = await db
       .from("memo_tags")
       .select("memo_id");
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
   const processed = await processBatch(memos);
 
   // 残件数を取得
-  const { count } = await supabase
+  const { count } = await db
     .from("memos")
     .select("id", { count: "exact", head: true })
     .not("id", "in", `(select memo_id from memo_tags)`);
@@ -86,19 +87,20 @@ async function processBatch(memos: { id: string; content: string }[]): Promise<n
 }
 
 async function processOneMemo(memo: { id: string; content: string }): Promise<boolean> {
+  const db = supabase();
   try {
     const tagNames = await generateTags(memo.content);
 
     // タグを一括upsertしてからmemo_tagsに紐付け
     for (const name of tagNames) {
-      const { data: tag } = await supabase
+      const { data: tag } = await db
         .from("tags")
         .upsert({ name }, { onConflict: "name" })
         .select()
         .single();
 
       if (tag) {
-        await supabase
+        await db
           .from("memo_tags")
           .upsert(
             { memo_id: memo.id, tag_id: tag.id },
