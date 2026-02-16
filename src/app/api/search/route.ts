@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     .from("memos")
     .select("*")
     .in("id", allMemoIds)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: true });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

@@ -2,12 +2,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { generateTags } from "@/lib/claude";
 
-// GET: メモ一覧取得（タグ付き）
-export async function GET() {
-  const { data: memos, error } = await supabase
+// GET: メモ一覧取得（タグ付き、ページング対応）
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const before = searchParams.get("before"); // カーソル: これより古いメモを取得
+  const days = searchParams.get("days"); // 初期ロード用: 直近N日分
+
+  let query = supabase
     .from("memos")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
+
+  if (before) {
+    // カーソルページング: before より古いメモを取得
+    query = query.lt("created_at", before);
+  } else if (days) {
+    // 初期ロード: 直近N日分
+    const since = new Date();
+    since.setDate(since.getDate() - parseInt(days, 10));
+    query = query.gte("created_at", since.toISOString());
+  }
+
+  const { data: memos, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -29,6 +46,9 @@ export async function GET() {
       return { ...memo, tags };
     })
   );
+
+  // 古い順に並べ替えて返す（UIで下が最新になるように）
+  memosWithTags.reverse();
 
   return NextResponse.json(memosWithTags);
 }

@@ -6,6 +6,8 @@ import { ChatArea } from "@/components/ChatArea";
 import { InputBar } from "@/components/InputBar";
 import { SearchBar } from "@/components/SearchBar";
 import { ModeToggle, Mode } from "@/components/ModeToggle";
+import { ImportButton } from "@/components/ImportButton";
+import { BulkTagButton } from "@/components/BulkTagButton";
 
 export default function Home() {
   const [memos, setMemos] = useState<MemoWithTags[]>([]);
@@ -14,11 +16,14 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
   const fetchMemos = useCallback(async () => {
     setIsLoading(true);
+    setHasMore(true);
     try {
-      const res = await fetch("/api/memos");
+      const res = await fetch("/api/memos?days=30");
       const data = await res.json();
       setMemos(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -27,6 +32,32 @@ export default function Home() {
       setIsLoading(false);
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore || memos.length === 0) return;
+    setIsLoadingMore(true);
+    try {
+      const oldest = memos[0];
+      const res = await fetch(
+        `/api/memos?before=${encodeURIComponent(oldest.created_at)}`
+      );
+      const data = await res.json();
+      const older: MemoWithTags[] = Array.isArray(data) ? data : [];
+      if (older.length === 0) {
+        setHasMore(false);
+      } else {
+        setMemos((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id));
+          const unique = older.filter((m) => !existingIds.has(m.id));
+          return [...unique, ...prev];
+        });
+      }
+    } catch (e) {
+      console.error("Failed to load more:", e);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [isLoadingMore, hasMore, memos]);
 
   useEffect(() => {
     fetchMemos();
@@ -65,6 +96,7 @@ export default function Home() {
       const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       setMemos(Array.isArray(data) ? data : []);
+      setHasMore(false); // 検索結果はページングなし
     } catch (e) {
       console.error("Failed to search:", e);
     } finally {
@@ -75,6 +107,12 @@ export default function Home() {
   const handleClearSearch = () => {
     setSearchQuery("");
     fetchMemos();
+  };
+
+  const handleTagsGenerated = (memoId: string, tags: Tag[]) => {
+    setMemos((prev) =>
+      prev.map((m) => (m.id === memoId ? { ...m, tags } : m))
+    );
   };
 
   const handleTagClick = (tag: Tag) => {
@@ -95,7 +133,11 @@ export default function Home() {
       {/* Header */}
       <header className="flex items-center justify-between border-b px-4 py-3">
         <h1 className="text-lg font-bold">AI Chat Memo</h1>
-        <ModeToggle mode={mode} onToggle={handleModeChange} />
+        <div className="flex items-center gap-2">
+          <BulkTagButton onCompleted={fetchMemos} />
+          <ImportButton onImported={fetchMemos} />
+          <ModeToggle mode={mode} onToggle={handleModeChange} />
+        </div>
       </header>
 
       {/* Search Bar (検索モード時) */}
@@ -121,7 +163,11 @@ export default function Home() {
         memos={memos}
         onDelete={handleDelete}
         onTagClick={handleTagClick}
+        onTagsGenerated={handleTagsGenerated}
         isLoading={isLoading}
+        onLoadMore={loadMore}
+        isLoadingMore={isLoadingMore}
+        hasMore={hasMore}
       />
 
       {/* Input Bar (投稿モード時) */}
