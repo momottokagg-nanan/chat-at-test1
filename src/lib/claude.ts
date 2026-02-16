@@ -1,11 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY!,
-});
+let _client: Anthropic | null = null;
+
+function getClient(): Anthropic {
+  if (!_client) {
+    _client = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY!,
+    });
+  }
+  return _client;
+}
 
 export async function generateTags(content: string): Promise<string[]> {
-  const message = await client.messages.create({
+  const message = await getClient().messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 200,
     messages: [
